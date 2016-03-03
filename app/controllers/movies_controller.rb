@@ -12,6 +12,8 @@ class MoviesController < ApplicationController
 
   def index
     ratings()
+    sort_missing = false
+    ratings_missing = false
     
     # initialize @sort
     if params.has_key?(:sort)
@@ -19,6 +21,7 @@ class MoviesController < ApplicationController
       session[:sort] = params[:sort]
     elsif session.has_key?(:sort)
       @sort = session[:sort]
+      sort_missing = true
     else
       @sort = ""
     end
@@ -26,13 +29,33 @@ class MoviesController < ApplicationController
     # initialize @ratings
     if params.has_key?(:ratings)
       @ratings = params[:ratings].keys
-      session[:ratings] = params[:ratings].keys
+      session[:ratings] = params[:ratings]
     elsif session.has_key?(:ratings)
-      @ratings = session[:ratings]
+      @ratings = session[:ratings].keys
+      ratings_missing = true
     else
       @ratings = @all_ratings
     end
     
+    # URI incomplete, so redirect
+    if sort_missing && ratings_missing
+      flash.keep
+      redirect_to movies_path({:sort => session[:sort], :ratings => session[:ratings]})
+    elsif sort_missing && !params.has_key?(:ratings)
+      flash.keep
+      redirect_to movies_path({:sort => session[:sort]})
+    elsif ratings_missing && !params.has_key?(:sort)
+      flash.keep
+      redirect_to movies_path({:ratings => session[:ratings]})
+    elsif sort_missing
+      flash.keep
+      redirect_to movies_path({:sort => session[:sort], :ratings => params[:ratings]})
+    elsif ratings_missing
+      flash.keep
+      redirect_to movies_path({:sort => params[:sort], :ratings => session[:ratings]})
+    end
+    
+    # Filter movies based on rating
     if @ratings.length > 0
       @movies = []
       @ratings.each do |checked|
@@ -44,6 +67,7 @@ class MoviesController < ApplicationController
       @movies = Movie.all
     end
     
+    # Sort movies based on the selected header
     if @sort.length > 0
       if @sort == "title"
         @movies.sort! {|a, b| a.title <=> b.title}
